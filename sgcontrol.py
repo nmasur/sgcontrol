@@ -3,34 +3,6 @@
 # sgcontrol - AWS Security Group Manager
 # by Noah Masur
 
-''' Ruleset YAML File: Formatting
-
----
-- name: SG Group Name
-  rulesets:
-    - ports:
-        - 80
-        - 443
-      cidr_ips:
-        - 99.99.99.99/32
-        - 199.199.199.199/32
-        - 299.299.299.299/32
-    - ports:
-        - 22
-      cidr_ips:
-        - 99.99.99.99/32
-        - sg-99999921
-
-# This group controls the database
-- name: SG Other Group
-  rulesets:
-    - ports:
-        - 3306
-    - cidr_ips:
-        - 99.99.99.99/32
-        - 1.2.3.4/32
-'''
-
 ###--- Setup ---###
 
 # Required packages
