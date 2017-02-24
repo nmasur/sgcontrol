@@ -1,9 +1,7 @@
 # sgcontrol
 Fool-proof AWS security group management.
 
-Written by Noah Masur for Take-Two Interactive.
-
-Inspired by sgmanager, but works on VPC security group IDs.
+Written by Noah Masur for Take-Two Interactive. Inspired by [sgmanager](https://github.com/gooddata/sgmanager), but works on VPC security group IDs.
 
 ## Using sgcontrol
 Dump current AWS security groups to file:
@@ -18,10 +16,20 @@ Apply local changes to current AWS security groups:
 
 ```python sgcontrol -f sg_list.yml```
 
+## AWS Credentials
+- Make sure your AWS IAM role or user has access to your security groups
+
+## Other flags
+- `-f` or `--force` applies changes to AWS
+- `-d` or `--dump` writes AWS groups in YAML format to stdout (or file)
+- `-k` or `--key` forces interactive prompt for AWS credentials
+- `-e` or `--dev` adds the `DEV` prefix to environment vars, and `dev` to default file name
+
 ## YAML File Format
 You can get your current security groups dumped in format by running `-d`, but here is the way to format the YAML file from scratch:
 
-```---
+```
+---
 - name: SG Group Name
   rulesets:
     - ports:
@@ -44,4 +52,5 @@ You can get your current security groups dumped in format by running `-d`, but h
         - 3306
     - cidr_ips:
         - 99.99.99.99/32
-        - 1.2.3.4/32```
+        - 1.2.3.4/32
+```
