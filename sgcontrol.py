@@ -196,14 +196,14 @@ def getLiveGroup(sg):
         sys.exit(1)
     except boto.exception.EC2ResponseError as e:
         if '401 Unauthorized' in str(e):
-            sys.stderr.write('Unauthorized access key.\n')
+            sys.stderr.write(cstr('Unauthorized access key.\n', col.RED))
         else:
             sys.stderr.write(str(e))
         sys.exit(1)
     except AttributeError:
-        sys.stderr.write('Could not connect to AWS region \'{}\'.\n'.format(
+        sys.stderr.write(cstr('Could not connect to AWS region \'{}\'.\n'.format(
                 ec2.credentials.REGION_NAME
-            ))
+            ), col.RED))
         sys.exit(1)
     return group
 
