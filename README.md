@@ -29,7 +29,7 @@ Make sure your AWS IAM role or user has access to your security groups
 - `-f` or `--force` applies changes to AWS
 - `-d` or `--dump` writes AWS groups in YAML format to stdout (or file)
 - `-k` or `--key` forces interactive prompt for AWS credentials
-- `-e` or `--dev` adds the `DEV` prefix to environment vars, and `dev` to default file name
+- `-e` or `--dev` adds the `DEV_` prefix to environment vars, and `dev_` to default file name
 
 ## YAML File Format
 You can get your current security groups dumped in format by running `-d`, but here is the way to format the YAML file from scratch:
