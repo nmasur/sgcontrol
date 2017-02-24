@@ -17,7 +17,13 @@ Apply local changes to current AWS security groups:
 ```python sgcontrol.py -f sg_list.yml```
 
 ## AWS Credentials
-- Make sure your AWS IAM role or user has access to your security groups
+sgcontrol checks for AWS IAM credentials in the following priority:
+
+1. If using flags -A, -S, -R
+2. Environment vars AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION
+3. Interactive prompts
+
+Make sure your AWS IAM role or user has access to your security groups
 
 ## Other flags
 - `-f` or `--force` applies changes to AWS
