@@ -13,8 +13,10 @@ import sys, os, argparse, yaml
 
 # Globals
 DEFAULT_FILENAME = "sg_list.yml"
+DEV_ENV_PREFIX = "DEV_"
+DEV_FILE_PREFIX = "dev_"
 
-# Python 2 vs. 3 considerations
+# Python 3 considerations
 try:
     input = raw_input
 except NameError:
@@ -87,7 +89,7 @@ def getCredentials(options):
         for e in env:
             try:
                 if options.dev:
-                    env[e] = os.environ["DEV_" + e]
+                    env[e] = os.environ[DEV_ENV_PREFIX + e]
                 else:
                     env[e] = os.environ[e] 
             except KeyError:
@@ -153,10 +155,10 @@ def dump():
 
 # Use default file if none provided
 def chooseReadFile(options):
-    prefix = ''
+    filename = DEFAULT_FILENAME 
     if options.dev:
-       prefix = 'dev_' 
-    filename = options.rules or env['SG_RULES_FILE'] or prefix + DEFAULT_FILENAME 
+       filename = DEV_FILE_PREFIX + filename
+    filename = options.rules or env['SG_RULES_FILE'] or filename
     filepath = os.path.abspath(filename)
     if not os.path.isfile(filepath):
         filepath = os.path.abspath(input("SG ruleset YAML file: "))
