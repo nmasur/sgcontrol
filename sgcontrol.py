@@ -1,0 +1,342 @@
+#!/usr/bin/env python
+
+# sgcontrol - AWS Security Group Manager
+# by Noah Masur
+
+''' Ruleset YAML File: Formatting
+
+---
+- name: SG Group Name
+  rulesets:
+    - ports:
+        - 80
+        - 443
+      cidr_ips:
+        - 99.99.99.99/32
+        - 199.199.199.199/32
+        - 299.299.299.299/32
+    - ports:
+        - 22
+      cidr_ips:
+        - 99.99.99.99/32
+        - sg-99999921
+
+# This group controls the database
+- name: SG Other Group
+  rulesets:
+    - ports:
+        - 3306
+    - cidr_ips:
+        - 99.99.99.99/32
+        - 1.2.3.4/32
+'''
+
+###--- Setup ---###
+
+# Required packages
+import ec2, boto
+
+# Standard library
+import sys, os, argparse, yaml
+
+# Globals
+DEFAULT_FILENAME = "sg_list.yml"
+
+# Python 2 vs. 3 considerations
+try:
+    input = raw_input
+except NameError:
+    pass
+
+# API Environment Credentials
+# Export these vars to your bash to prevent EC2, etc. prompting
+env = { 
+        'AWS_ACCESS_KEY' : None,
+        'AWS_SECRET_KEY' : None,
+        'AWS_REGION'     : None,
+        'SG_RULES_FILE'  : None,
+      }
+
+# Colors
+class col:
+    PURPLE    = '\033[95m'
+    BLUE      = '\033[94m'
+    GREEN     = '\033[92m'
+    ORANGE    = '\033[93m'
+    RED       = '\033[91m'
+    ENDC      = '\033[0m'
+    BOLD      = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+# Colored versions of string statements
+def cstr(text, color):
+    return (color + text + col.ENDC)
+
+def cprint(text, color):
+    print(cstr(text, color))
+
+# SecurityGroup Data Class
+class SecurityGroup:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
+    def __str__(self):
+        return self.name + " (Security Group)"
+
+# SGRuleset Data Class
+class SGRuleset:
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
+    def __str__(self):
+        return self.ports + ": " + self.cidr_ips
+
+###--- Local Processing Actions ---###
+
+# Command line argument parsing
+def parseArguments():
+    parser = argparse.ArgumentParser(description='Apply security group rules to EC2.')
+    parser.add_argument('-f', '--force', action='store_true', help='apply changes to sg rules')
+    parser.add_argument('-k', '--key', action='store_false', help='interactive key prompts')
+    parser.add_argument('-d', '--dump', action='store_true', help='dump live rules to local file')
+    parser.add_argument('-e', '--dev', action='store_true', help='use separate dev information')
+    parser.add_argument('-S', '--secret', default='')
+    parser.add_argument('-A', '--access', default='')
+    parser.add_argument('-R', '--region', default='')
+    parser.add_argument('rules', nargs='?', type=str, help='input YAML file with rules')
+
+    options = parser.parse_args(sys.argv[1:])
+    return options
+
+# Get basic credential information from user
+def getCredentials(options):
+    # Use -k to turn off env variable check
+    if options.key:
+        for e in env:
+            try:
+                if options.dev:
+                    env[e] = os.environ["DEV_" + e]
+                else:
+                    env[e] = os.environ[e] 
+            except KeyError:
+                pass
+    # Or override env vars with -A, -S, -R flags
+    try:
+        ec2.credentials.ACCESS_KEY_ID = (
+            options.access or 
+            env['AWS_ACCESS_KEY'] or 
+            input("AWS Access Key: ")
+        )
+        ec2.credentials.SECRET_ACCESS_KEY = (
+            options.secret or 
+            env['AWS_SECRET_KEY'] or 
+            input("AWS Secret Key: ")
+        )
+        ec2.credentials.REGION_NAME = (
+            options.region or 
+            env['AWS_REGION'] or 
+            input("AWS Region: ")
+        )
+    except KeyboardInterrupt:
+        print("\n\nInterrupt detected. Exiting.\n")
+        sys.exit(0)
+
+# Hack to build dump file
+def dump():
+    all_sgs = ec2.security_groups.all() 
+    dumpdata = []
+    for sg in all_sgs:
+        if sg.name == 'default':
+            continue
+        group = {}
+        group['name'] = sg.name
+        group['rulesets'] = []
+        for rule in sg.rules:
+            ruleset = {}
+            ruleset['ports'] = [int(rule.to_port)]
+            ruleset['cidr_ips'] = []
+            for grant in rule.grants:
+                cidr_ip = ""
+                if grant.group_id and grant.owner_id:
+                    cidr_ip = grant.group_id + '-' + grant.owner_id 
+                else:
+                    cidr_ip = grant.cidr_ip
+                ruleset['cidr_ips'].append(cidr_ip)
+            # Merge multiple ports for the same rules (all must match)
+            ruleset_added = False
+            for local_ruleset in group['rulesets']:
+                if not ruleset_added:
+                    local_ip_set = set(local_ruleset['cidr_ips'])
+                    live_ip_set = set(ruleset['cidr_ips'])
+                    if not local_ip_set.difference(live_ip_set):
+                        local_ruleset['ports'].extend(ruleset['ports'])
+                        ruleset_added = True
+            # Otherwise just add the whole set for the port
+            if not ruleset_added:
+                group['rulesets'].append(ruleset)
+
+        dumpdata.append(group)
+
+    print (yaml.safe_dump(dumpdata, default_flow_style=False))
+
+# Use default file if none provided
+def chooseReadFile(options):
+    prefix = ''
+    if options.dev:
+       prefix = 'dev_' 
+    filename = options.rules or env['SG_RULES_FILE'] or prefix + DEFAULT_FILENAME 
+    filepath = os.path.abspath(filename)
+    if not os.path.isfile(filepath):
+        filepath = os.path.abspath(input("SG ruleset YAML file: "))
+        print("")
+    cprint("Using YAML file: {}\n".format(filepath), col.BLUE)
+    return filepath
+
+# Collect security group rule list from file
+def getLocalGroups(filepath):
+    security_groups = []
+    try:
+        with open(filepath, 'r') as stream:
+            sg_dicts = yaml.load(stream)
+            for sg_dict in sg_dicts:
+                rulesets = sg_dict['rulesets']
+                for i in range(len(rulesets)):
+                    rulesets[i] = SGRuleset(**rulesets[i])
+                security_groups.append(SecurityGroup(**sg_dict))
+    except IOError:
+        sys.stderr.write("No file found named {}.\n".format(filepath))
+        sys.exit(1)
+    except yaml.YAMLError:
+        sys.stderr.write("Invalid YAML formatting.\n")
+        sys.exit(1)
+    return security_groups
+
+###--- AWS Actions ---###
+
+# Get AWS Security Group object
+def getLiveGroup(sg):
+    try:
+        group = ec2.security_groups.get(name=sg.name)
+    except ec2.security_groups.DoesNotExist:
+        sys.stderr.write('Security group not found: {}\n'.format(sg.name))
+        sys.exit(1)
+    except boto.exception.EC2ResponseError as e:
+        if '401 Unauthorized' in str(e):
+            sys.stderr.write('Unauthorized access key.\n')
+        else:
+            sys.stderr.write(str(e))
+        sys.exit(1)
+    except AttributeError:
+        sys.stderr.write('Could not connect to AWS region \'{}\'.\n'.format(
+                ec2.credentials.REGION_NAME
+            ))
+        sys.exit(1)
+    return group
+
+# Collect live rules
+def getLiveRules(group):
+    live_rules = set() 
+    for rule in group.rules:
+        port = int(rule.from_port)
+        for grant in rule.grants:
+            cidr_ip = str(grant)
+            live_rules.add((port, cidr_ip))
+    return live_rules
+
+# Collect local rules
+def getLocalRules(sg):
+    local_rules = set()
+    for ruleset in sg.rulesets: 
+        for port in ruleset.ports:
+            for cidr_ip in ruleset.cidr_ips:
+                local_rules.add((port, cidr_ip))
+    return local_rules
+
+# Compare differences
+def compareRules(live_rules, local_rules, options):
+    to_be_revoked = live_rules.difference(local_rules)
+    to_be_authorized = local_rules.difference(live_rules)
+
+    def describeChange(differences, message):
+        print (message)
+        for (port, cidr_ip) in differences:
+            print ('        * {} - TCP, {}, {}'.format(sg.name, port, cidr_ip))
+        print ("")
+
+    if not options.force and (to_be_revoked or to_be_authorized):
+        cprint ('{}:\n'.format(group.name), col.PURPLE)
+
+        if to_be_revoked:
+            describeChange(to_be_revoked, cstr("    To be revoked:", col.RED))
+
+        if to_be_authorized:
+            describeChange(to_be_authorized, cstr("    To be authorized:", col.GREEN))
+
+    return (to_be_revoked, to_be_authorized)
+
+# Apply differences
+def applyChanges(group, to_be_revoked, to_be_authorized):
+    cprint ("Applying security groups on {}...\n".format(sg.name), col.ORANGE)
+    try:
+        for (port, cidr_ip) in to_be_revoked:
+            if not cidr_ip[0].isdigit():
+                group.revoke('tcp', port, port, group_id=cidr_ip)
+            else:
+                group.revoke('tcp', port, port, cidr_ip=cidr_ip)
+            print ('        * {} {} - TCP, {}, {}'.format(
+                    cstr('Revoked:', col.RED), sg.name, port, cidr_ip
+                ))
+        for (port, cidr_ip) in to_be_authorized:
+            if not cidr_ip[0].isdigit():
+                group.authorize('tcp', port, port, group_id=cidr_ip)
+            else:
+                group.authorize('tcp', port, port, cidr_ip=cidr_ip)
+            print ('        * {} {} - TCP, {}, {}'.format(
+                    cstr('Authorized:', col.GREEN), sg.name, port, cidr_ip
+                ))
+    except boto.exception.EC2ResponseError as e:
+        if '403 Forbidden' in str(e):
+            sys.stderr.write('Forbidden to make changes to this security group.\n')
+        elif '400 Bad Request' in str(e):
+            sys.stderr.write('Improper values or formatting given.\n')
+        else:
+            sys.stderr.write(str(e))
+        sys.exit(1)
+    print ("\n      Done.\n")
+
+# Print final response
+def summarize(options, has_diffs):
+    if options.force:
+        if has_diffs:
+            print ("All changes applied.\n")
+        else: 
+            print ("No changes to apply.\n")
+    else:
+        if has_diffs:
+            print ("Use -f to apply changes.\n")
+        else:
+            print ("No differences found.\n")
+
+###--- Program Execution ---###
+
+options = parseArguments()
+getCredentials(options)
+# Dump live to local
+if options.dump:
+    dump()
+# Compare local to live
+else:
+    filepath = chooseReadFile(options)
+    security_groups = getLocalGroups(filepath)
+    has_diffs = False
+    for sg in security_groups:
+        group = getLiveGroup(sg)
+        live_rules = getLiveRules(group)
+        local_rules = getLocalRules(sg) 
+        (revoke, authorize) = compareRules(live_rules, local_rules, options)
+        has_diffs = bool(revoke or authorize or has_diffs)
+        # Make changes to live
+        if options.force and (revoke or authorize):
+            applyChanges(group, revoke, authorize)
+    summarize(options, has_diffs)
+
