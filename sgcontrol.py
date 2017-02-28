@@ -150,8 +150,8 @@ def dump():
             ruleset['cidr_ips'] = []
             for grant in rule.grants:
                 cidr_ip = ""
-                if grant.group_id and grant.owner_id:
-                    cidr_ip = grant.group_id + '-' + grant.owner_id 
+                if grant.group_id:
+                    cidr_ip = grant.group_id
                 else:
                     cidr_ip = grant.cidr_ip
                 ruleset['cidr_ips'].append(cidr_ip)
@@ -168,7 +168,8 @@ def dump():
             if not ruleset_added:
                 group['rulesets'].append(ruleset)
 
-        dumpdata.append(group)
+        if group['rulesets']:
+            dumpdata.append(group)
 
     print (yaml.safe_dump(dumpdata, default_flow_style=False))
 
