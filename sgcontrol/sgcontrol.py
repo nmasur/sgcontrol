@@ -312,25 +312,28 @@ def summarize(options, has_diffs):
             print ("No differences found.\n")
 
 ###--- Program Execution ---###
+def main():
+    options = parseArguments()
+    getCredentials(options)
+    # Dump live to local
+    if options.dump:
+        dump()
+    # Compare local to live
+    else:
+        filepath = chooseReadFile(options)
+        security_groups = getLocalGroups(filepath)
+        has_diffs = False
+        for sg in security_groups:
+            group = getLiveGroup(sg)
+            live_rules = getLiveRules(group)
+            local_rules = getLocalRules(sg) 
+            (revoke, authorize) = compareRules(live_rules, local_rules, options)
+            has_diffs = bool(revoke or authorize or has_diffs)
+            # Make changes to live
+            if options.force and (revoke or authorize):
+                applyChanges(group, revoke, authorize)
+        summarize(options, has_diffs)
 
-options = parseArguments()
-getCredentials(options)
-# Dump live to local
-if options.dump:
-    dump()
-# Compare local to live
-else:
-    filepath = chooseReadFile(options)
-    security_groups = getLocalGroups(filepath)
-    has_diffs = False
-    for sg in security_groups:
-        group = getLiveGroup(sg)
-        live_rules = getLiveRules(group)
-        local_rules = getLocalRules(sg) 
-        (revoke, authorize) = compareRules(live_rules, local_rules, options)
-        has_diffs = bool(revoke or authorize or has_diffs)
-        # Make changes to live
-        if options.force and (revoke or authorize):
-            applyChanges(group, revoke, authorize)
-    summarize(options, has_diffs)
+if __name__ == "__main__":
+    main()
 
