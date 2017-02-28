@@ -65,6 +65,26 @@ class SGRuleset:
     def __str__(self):
         return self.ports + ": " + self.cidr_ips
 
+# Group ID Data Class
+class SGId:
+    def __init__(self, group_id, owner_id):
+        self.group_id = group_id
+        self.owner_id = owner_id
+
+    @staticmethod
+    def build(string):
+        parts = string.split('-')
+        if len(parts) == 3:
+            group_id = '-'.join(parts[0:2])
+            owner_id = parts[2]
+            return SGId(group_id, owner_id)
+        else:
+            sys.stderr.write("Invalid sg group '{}'.\n".format(string))
+            sys.exit(1)
+
+    def __str__(self):
+        return "SGId: " + '-'.join([group_id, owner_id])
+
 ###--- Local Processing Actions ---###
 
 # Command line argument parsing
@@ -254,7 +274,8 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
     try:
         for (port, cidr_ip) in to_be_revoked:
             if not cidr_ip[0].isdigit():
-                group.revoke('tcp', port, port, group_id=cidr_ip)
+                sgid = SGId.build(cidr_ip) 
+                group.revoke('tcp', port, port, src_group=sgid)
             else:
                 group.revoke('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
@@ -262,7 +283,8 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                 ))
         for (port, cidr_ip) in to_be_authorized:
             if not cidr_ip[0].isdigit():
-                group.authorize('tcp', port, port, group_id=cidr_ip)
+                sgid = SGId.build(cidr_ip) 
+                group.authorize('tcp', port, port, src_group=sgid)
             else:
                 group.authorize('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
