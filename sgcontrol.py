@@ -67,20 +67,16 @@ class SGRuleset:
 
 # Group ID Data Class
 class SGId:
-    def __init__(self, group_id, owner_id):
-        self.group_id = group_id
-        self.owner_id = owner_id
-
     @staticmethod
-    def build(string):
-        parts = string.split('-')
-        if len(parts) == 3:
-            group_id = '-'.join(parts[0:2])
-            owner_id = parts[2]
-            return SGId(group_id, owner_id)
+    def cleanId(text):
+        if len(text.split('-')) == 3:
+            return '-'.join(text.split('-')[0:2])
         else:
-            sys.stderr.write("Invalid sg group '{}'.\n".format(string))
-            sys.exit(1)
+            return text
+
+    def __init__(self, group_id, group_obj):
+        self.group_id = SGId.cleanId(group_id)
+        self.owner_id = group_obj.owner_id
 
     def __str__(self):
         return "SGId: " + '-'.join([group_id, owner_id])
@@ -233,7 +229,7 @@ def getLiveRules(group):
     for rule in group.rules:
         port = int(rule.from_port)
         for grant in rule.grants:
-            cidr_ip = str(grant)
+            cidr_ip = SGId.cleanId(str(grant))
             live_rules.add((port, cidr_ip))
     return live_rules
 
@@ -243,6 +239,7 @@ def getLocalRules(sg):
     for ruleset in sg.rulesets: 
         for port in ruleset.ports:
             for cidr_ip in ruleset.cidr_ips:
+                cidr_ip = SGId.cleanId(cidr_ip)
                 local_rules.add((port, cidr_ip))
     return local_rules
 
@@ -274,8 +271,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
     try:
         for (port, cidr_ip) in to_be_revoked:
             if not cidr_ip[0].isdigit():
-                sgid = SGId.build(cidr_ip)
-                group.revoke('tcp', port, port, src_group=sgid)
+                group.revoke('tcp', port, port, src_group=SGId(cidr_ip, group))
             else:
                 group.revoke('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
@@ -283,8 +279,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                 ))
         for (port, cidr_ip) in to_be_authorized:
             if not cidr_ip[0].isdigit():
-                sgid = SGId.build(cidr_ip)
-                group.authorize('tcp', port, port, src_group=sgid)
+                group.authorize('tcp', port, port, src_group=SGId(cidr_ip, group))
             else:
                 group.authorize('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
@@ -294,7 +289,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
         if '403 Forbidden' in str(e):
             sys.stderr.write('Forbidden to make changes to this security group.\n')
         elif '400 Bad Request' in str(e):
-            sys.stderr.write('Improper values or formatting given.\n')
+            sys.stderr.write('Improper values or formatting given.\n' + str(e))
         else:
             sys.stderr.write(str(e))
         sys.exit(1)
