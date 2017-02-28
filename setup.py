@@ -6,7 +6,6 @@ setup(
   packages = ['sgcontrol'], # this must be the same as the name above
   version = '0.5',
   description = 'Foolproof AWS security group management',
-  install_requires=['boto', 'ec2', 'PyYAML'],
   author = 'Noah Masur',
   author_email = 'nmasur@wesleyan.edu',
   url = 'https://github.com/nmasur/sgcontrol', # use the URL to the github repo
