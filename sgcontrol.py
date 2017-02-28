@@ -49,6 +49,9 @@ def cstr(text, color):
 def cprint(text, color):
     print(cstr(text, color))
 
+def error(text):
+    sys.stderr.write(cstr(text, col.RED))
+
 # SecurityGroup Data Class
 class SecurityGroup:
     def __init__(self, **entries):
@@ -194,10 +197,10 @@ def getLocalGroups(filepath):
                     rulesets[i] = SGRuleset(**rulesets[i])
                 security_groups.append(SecurityGroup(**sg_dict))
     except IOError:
-        sys.stderr.write("No file found named {}.\n".format(filepath))
+        error("No file found named {}.\n".format(filepath))
         sys.exit(1)
     except yaml.YAMLError:
-        sys.stderr.write("Invalid YAML formatting.\n")
+        error("Invalid YAML formatting.\n")
         sys.exit(1)
     return security_groups
 
@@ -208,18 +211,17 @@ def getLiveGroup(sg):
     try:
         group = ec2.security_groups.get(name=sg.name)
     except ec2.security_groups.DoesNotExist:
-        sys.stderr.write('Security group not found: {}\n'.format(sg.name))
+        error('Security group not found: {}\n'.format(sg.name))
         sys.exit(1)
     except boto.exception.EC2ResponseError as e:
         if '401 Unauthorized' in str(e):
-            sys.stderr.write(cstr('Unauthorized access key.\n', col.RED))
+            error('Unauthorized access key.\n')
         else:
-            sys.stderr.write(str(e))
+            error(str(e) + '\n')
         sys.exit(1)
     except AttributeError:
-        sys.stderr.write(cstr('Could not connect to AWS region \'{}\'.\n'.format(
-                ec2.credentials.REGION_NAME
-            ), col.RED))
+        error('Could not connect to AWS region \'{}\'.\n'.format(
+                ec2.credentials.REGION_NAME))
         sys.exit(1)
     return group
 
@@ -287,11 +289,11 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                 ))
     except boto.exception.EC2ResponseError as e:
         if '403 Forbidden' in str(e):
-            sys.stderr.write('Forbidden to make changes to this security group.\n')
+            error('Forbidden to make changes to the security group "{}".\n'.format(group.name))
         elif '400 Bad Request' in str(e):
-            sys.stderr.write('Improper values or formatting given.\n' + str(e))
+            error('Improper values or formatting given.\n')
         else:
-            sys.stderr.write(str(e))
+            error(str(e))
         sys.exit(1)
     print ("\n      Done.\n")
 
