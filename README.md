@@ -1,20 +1,25 @@
 # sgcontrol
 Fool-proof AWS security group management.
 
-Written by Noah Masur for Take-Two Interactive. Inspired by [sgmanager](https://github.com/gooddata/sgmanager), but also works with VPC security group IDs, and allows you to write one list of IPs for several ports.
+Written by Noah Masur for Take-Two Interactive. Using [ec2](https://github.com/mattrobenolt/ec2) and inspired by [sgmanager](https://github.com/gooddata/sgmanager), but also works with VPC security group IDs, and allows you to write one list of IPs for several ports.
+
+## Installation
+```pip install sgcontrol```
+
+Or download this repo and run `python sgcontrol.py` to run as a script.
 
 ## Using sgcontrol
 Dump current AWS security groups to file:
 
-```python sgcontrol.py -d > sg_list.yml```
+```sgcontrol -d > sg_list.yml```
 
 Compare local file to current AWS security groups:
 
-```python sgcontrol.py sg_list.yml```
+```sgcontrol sg_list.yml```
 
 Apply local changes to current AWS security groups:
 
-```python sgcontrol.py -f sg_list.yml```
+```sgcontrol -f sg_list.yml```
 
 ## AWS Credentials
 sgcontrol checks for AWS IAM credentials in the following priority:
