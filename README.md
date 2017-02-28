@@ -49,7 +49,8 @@ You can get your current security groups dumped in format by running `-d`, but h
         - 22
       cidr_ips:
         - 99.99.99.99/32
-        - sg-99999921
+        # Security group ids require your account id as a suffix
+        - sg-99999921-012345678910
 
 # This group controls the database
 - name: SG Other Group

@@ -274,7 +274,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
     try:
         for (port, cidr_ip) in to_be_revoked:
             if not cidr_ip[0].isdigit():
-                sgid = SGId.build(cidr_ip) 
+                sgid = SGId.build(cidr_ip)
                 group.revoke('tcp', port, port, src_group=sgid)
             else:
                 group.revoke('tcp', port, port, cidr_ip=cidr_ip)
@@ -283,7 +283,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                 ))
         for (port, cidr_ip) in to_be_authorized:
             if not cidr_ip[0].isdigit():
-                sgid = SGId.build(cidr_ip) 
+                sgid = SGId.build(cidr_ip)
                 group.authorize('tcp', port, port, src_group=sgid)
             else:
                 group.authorize('tcp', port, port, cidr_ip=cidr_ip)
