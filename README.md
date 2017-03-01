@@ -1,7 +1,7 @@
 # sgcontrol
 Fool-proof AWS security group management.
 
-Written by Noah Masur for Take-Two Interactive. Using [ec2](https://github.com/mattrobenolt/ec2) and inspired by [sgmanager](https://github.com/gooddata/sgmanager), but also works with VPC security group IDs, and allows you to write one list of IPs for several ports.
+Written by Noah Masur using [ec2](https://github.com/mattrobenolt/ec2). Inspired by [sgmanager](https://github.com/gooddata/sgmanager), but also works with VPC security group IDs, and allows you to write one list of IPs for several ports.
 
 ## Installation
 ```pip install sgcontrol```
