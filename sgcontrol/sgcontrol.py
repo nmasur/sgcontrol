@@ -248,14 +248,14 @@ def getLocalRules(sg):
     return local_rules
 
 # Compare differences
-def compareRules(live_rules, local_rules, options):
+def compareRules(group, live_rules, local_rules, options):
     to_be_revoked = live_rules.difference(local_rules)
     to_be_authorized = local_rules.difference(live_rules)
 
     def describeChange(differences, message):
         print (message)
         for (port, cidr_ip) in differences:
-            print ('        * {} - TCP, {}, {}'.format(sg.name, port, cidr_ip))
+            print ('        * {} - TCP, {}, {}'.format(group.name, port, cidr_ip))
         print ("")
 
     if not options.force and (to_be_revoked or to_be_authorized):
@@ -328,7 +328,7 @@ def main():
             group = getLiveGroup(sg)
             live_rules = getLiveRules(group)
             local_rules = getLocalRules(sg) 
-            (revoke, authorize) = compareRules(live_rules, local_rules, options)
+            (revoke, authorize) = compareRules(group, live_rules, local_rules, options)
             has_diffs = bool(revoke or authorize or has_diffs)
             # Make changes to live
             if options.force and (revoke or authorize):

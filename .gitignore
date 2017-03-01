@@ -2,3 +2,6 @@
 *.pyc
 dist/*
 *.egg-info
+credentials.sh
+pypitest.sh
+pypi.sh
