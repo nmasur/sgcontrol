@@ -51,7 +51,7 @@ def cprint(text, color):
     print(cstr(text, color))
 
 def error(text):
-    sys.stderr.write(cstr(text, col.RED))
+    sys.stderr.write(cstr(text, col.RED) + '\n')
 
 # SecurityGroup Data Class
 class SecurityGroup:
@@ -199,10 +199,10 @@ def getLocalGroups(filepath):
                     rulesets[i] = SGRuleset(**rulesets[i])
                 security_groups.append(SecurityGroup(**sg_dict))
     except IOError:
-        error("No file found named {}.\n".format(filepath))
+        error("No file found named {}.".format(filepath))
         sys.exit(1)
     except yaml.YAMLError:
-        error("Invalid YAML formatting.\n")
+        error("Invalid YAML formatting.")
         sys.exit(1)
     return security_groups
 
@@ -213,16 +213,16 @@ def getLiveGroup(sg):
     try:
         group = ec2.security_groups.get(name=sg.name)
     except ec2.security_groups.DoesNotExist:
-        error('Security group not found: {}\n'.format(sg.name))
+        error('Security group not found: {}'.format(sg.name))
         sys.exit(1)
     except boto.exception.EC2ResponseError as e:
         if '401 Unauthorized' in str(e):
-            error('Unauthorized access key.\n')
+            error('Unauthorized access key.')
         else:
-            error(str(e) + '\n')
+            error(str(e))
         sys.exit(1)
     except AttributeError:
-        error('Could not connect to AWS region \'{}\'.\n'.format(
+        error('Could not connect to AWS region \'{}\'.'.format(
                 ec2.credentials.REGION_NAME))
         sys.exit(1)
     return group
@@ -272,8 +272,10 @@ def compareRules(group, live_rules, local_rules, options):
 # Apply differences
 def applyChanges(group, to_be_revoked, to_be_authorized):
     cprint ("Applying security groups on {}...\n".format(group.name), col.ORANGE)
+    current_ip = ""
     try:
         for (port, cidr_ip) in to_be_revoked:
+            current_ip = cidr_ip
             if not cidr_ip[0].isdigit():
                 group.revoke('tcp', port, port, src_group=SGId(cidr_ip, group))
             else:
@@ -282,6 +284,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                     cstr('Revoked:', col.RED), group.name, port, cidr_ip
                 ))
         for (port, cidr_ip) in to_be_authorized:
+            current_ip = cidr_ip
             if not cidr_ip[0].isdigit():
                 group.authorize('tcp', port, port, src_group=SGId(cidr_ip, group))
             else:
@@ -291,9 +294,12 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
                 ))
     except boto.exception.EC2ResponseError as e:
         if '403 Forbidden' in str(e):
-            error('Forbidden to make changes to the security group "{}".\n'.format(group.name))
+            error('Forbidden to make changes to the security group "{}".'.format(group.name))
         elif '400 Bad Request' in str(e):
-            error('Improper values or formatting given.\n')
+            if 'maximum number of rules' in str(e):
+                error('Too many rules in your security group "{}".'.format(group.name))
+            else:
+                error('Improper values or formatting given: {}.'.format(current_ip))
         else:
             error(str(e))
         sys.exit(1)
