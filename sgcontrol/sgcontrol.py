@@ -271,7 +271,7 @@ def compareRules(group, live_rules, local_rules, options):
 
 # Apply differences
 def applyChanges(group, to_be_revoked, to_be_authorized):
-    cprint ("Applying security groups on {}...\n".format(sg.name), col.ORANGE)
+    cprint ("Applying security groups on {}...\n".format(group.name), col.ORANGE)
     try:
         for (port, cidr_ip) in to_be_revoked:
             if not cidr_ip[0].isdigit():
@@ -279,7 +279,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
             else:
                 group.revoke('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
-                    cstr('Revoked:', col.RED), sg.name, port, cidr_ip
+                    cstr('Revoked:', col.RED), group.name, port, cidr_ip
                 ))
         for (port, cidr_ip) in to_be_authorized:
             if not cidr_ip[0].isdigit():
@@ -287,7 +287,7 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
             else:
                 group.authorize('tcp', port, port, cidr_ip=cidr_ip)
             print ('        * {} {} - TCP, {}, {}'.format(
-                    cstr('Authorized:', col.GREEN), sg.name, port, cidr_ip
+                    cstr('Authorized:', col.GREEN), group.name, port, cidr_ip
                 ))
     except boto.exception.EC2ResponseError as e:
         if '403 Forbidden' in str(e):
