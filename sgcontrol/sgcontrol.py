@@ -182,8 +182,12 @@ def chooseReadFile(options):
     filename = options.rules or env['SG_RULES_FILE'] or filename
     filepath = os.path.abspath(filename)
     if not os.path.isfile(filepath):
-        filepath = os.path.abspath(input("SG ruleset YAML file: "))
-        print("")
+        try:
+            filepath = os.path.abspath(input("SG ruleset YAML file: "))
+            print("")
+        except KeyboardInterrupt:
+            print("\n\nInterrupt detected. Exiting.\n")
+            sys.exit(0)
     cprint("Using YAML file: {}\n".format(filepath), col.BLUE)
     return filepath
 
