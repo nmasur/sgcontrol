@@ -306,24 +306,23 @@ def applyChanges(group, to_be_revoked, to_be_authorized):
     cprint ("Applying security groups on {}...\n".format(group.name), col.ORANGE)
     current_ip = ""
     try:
-        for (port, cidr_ip) in to_be_revoked:
-            current_ip = cidr_ip
-            if not cidr_ip[0].isdigit():
-                group.revoke('tcp', port, port, src_group=SGId(cidr_ip, group))
-            else:
-                group.revoke('tcp', port, port, cidr_ip=cidr_ip)
-            print ('        * {} {} - TCP, {}, {}'.format(
-                    cstr('Revoked:', col.RED), group.name, port, cidr_ip
-                ))
-        for (port, cidr_ip) in to_be_authorized:
-            current_ip = cidr_ip
-            if not cidr_ip[0].isdigit():
-                group.authorize('tcp', port, port, src_group=SGId(cidr_ip, group))
-            else:
-                group.authorize('tcp', port, port, cidr_ip=cidr_ip)
-            print ('        * {} {} - TCP, {}, {}'.format(
-                    cstr('Authorized:', col.GREEN), group.name, port, cidr_ip
-                ))
+        difflists = [
+            {'list': to_be_revoked, 'action': group.revoke, 'header': 'Revoked:', 
+                'color': col.RED},
+            {'list': to_be_authorized, 'action': group.authorize, 'header': 'Authorized:',
+                'color': col.GREEN}
+        ]
+        for difflist in difflists:
+            for (port, cidr_ip) in difflist['list']:
+                current_ip = cidr_ip
+                if not cidr_ip[0].isdigit():
+                    difflist['action']('tcp', port, port, src_group=SGId(cidr_ip, group))
+                else:
+                    difflist['action']('tcp', port, port, cidr_ip=cidr_ip)
+                print ('        * {} {} - TCP, {}, {}'.format(
+                        cstr(difflist['header'], difflist['color']), group.name, port, cidr_ip
+                    ))
+
     except boto.exception.EC2ResponseError as e:
         if '403 Forbidden' in str(e):
             error('Forbidden to make changes to the security group "{}".'.format(group.name))
