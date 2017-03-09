@@ -26,10 +26,10 @@ except NameError:
 # API Environment Credentials
 # Export these vars to your bash to prevent EC2, etc. prompting
 env = { 
-        'AWS_ACCESS_KEY' : None,
-        'AWS_SECRET_KEY' : None,
-        'AWS_REGION'     : None,
-        'SG_RULES_FILE'  : None,
+        'AWS_ACCESS_KEY_ID'     : None,
+        'AWS_SECRET_ACCESS_KEY' : None,
+        'AWS_REGION'            : None,
+        'SG_RULES_FILE'         : None,
       }
 
 # Colors
@@ -118,17 +118,17 @@ def getCredentials(options):
     try:
         ec2.credentials.ACCESS_KEY_ID = (
             options.access or 
-            env['AWS_ACCESS_KEY'] or 
+            env['AWS_ACCESS_KEY_ID'] or
             input("AWS Access Key: ")
         )
         ec2.credentials.SECRET_ACCESS_KEY = (
             options.secret or 
-            env['AWS_SECRET_KEY'] or 
+            env['AWS_SECRET_ACCESS_KEY'] or
             input("AWS Secret Key: ")
         )
         ec2.credentials.REGION_NAME = (
             options.region or 
-            env['AWS_REGION'] or 
+            env['AWS_REGION'] or
             input("AWS Region: ")
         )
     except KeyboardInterrupt:
