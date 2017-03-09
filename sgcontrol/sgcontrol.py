@@ -10,7 +10,7 @@
 import ec2, boto
 
 # Standard library
-import sys, os, argparse, yaml
+import sys, os, argparse, yaml, ConfigParser
 
 # Globals
 DEFAULT_FILENAME = "sg_list.yml"
@@ -94,6 +94,7 @@ def parseArguments():
     parser.add_argument('-k', '--key', action='store_false', help='interactive key prompts')
     parser.add_argument('-d', '--dump', action='store_true', help='dump live rules to local file')
     parser.add_argument('-e', '--dev', action='store_true', help='use separate dev information')
+    parser.add_argument('-p', '--profile', default='')
     parser.add_argument('-S', '--secret', default='')
     parser.add_argument('-A', '--access', default='')
     parser.add_argument('-R', '--region', default='')
@@ -106,6 +107,32 @@ def parseArguments():
 def getCredentials(options):
     # Use -k to turn off env variable check
     if options.key:
+
+        # Check AWS config file path
+        try:
+            credentialpath = os.path.expanduser('~/.aws/credentials')
+            configpath = os.path.expanduser('~/.aws/config')
+            cp = ConfigParser.ConfigParser()
+            if os.path.isfile(credentialpath):
+                cp.readfp(open(credentialpath))
+                if cp.sections():
+                    section = cp.sections()[0]
+                    if options.profile:
+                        section = cp.sections()[cp.sections().index(options.profile)] 
+                    env['AWS_ACCESS_KEY_ID'] = cp.get(section, 'aws_access_key_id')
+                    env['AWS_SECRET_ACCESS_KEY'] = cp.get(section, 'aws_secret_access_key')
+
+            if os.path.isfile(configpath):
+                cp.readfp(open(configpath))
+                if cp.sections():
+                    if options.profile:
+                        section = cp.sections()[cp.sections().index(options.profile)] 
+                    env['AWS_REGION'] = cp.get(section, 'region')
+        except ValueError:
+            error("Profile \"{}\" not found in AWS config files.".format(options.profile))
+            sys.exit(1)
+
+        # Check shell env variables and override config file
         for e in env:
             try:
                 if options.dev:
@@ -114,6 +141,7 @@ def getCredentials(options):
                     env[e] = os.environ[e] 
             except KeyError:
                 pass
+
     # Or override env vars with -A, -S, -R flags
     try:
         ec2.credentials.ACCESS_KEY_ID = (
